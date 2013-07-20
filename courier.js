@@ -40,12 +40,19 @@
         fire : function(name, data) {
             var hs = this.handlers[name],
                 i = 0,
-                len;
+                len,
+                isStop = false;
 
             if(!hs || (len = hs.length) == 0) return;
-            while(i < len) {
+            while(i < len && !isStop) {
                 hs[i++].call(null, {
-                    data: data
+                    data: data,
+                    /*
+                        停止后续事件触发
+                    */
+                    stop: function() {
+                        isStop = true;
+                    }
                 });
             }
         }
