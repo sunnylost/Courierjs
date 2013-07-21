@@ -13,25 +13,24 @@
 
             function f2(e) {
                 console.log('f2 = ' + e.data);
-                e.stop();
             }
 
             function f3(e) {
                 console.log('f3 = ' + e.data);
             }
 
-            Courier.on('f1', f1);
-            Courier.once('f2', f2);
+            function f4(e) {
+                console.log('f4 = ' + e.data);
+            }
 
-            Courier.on('f3', f1);
-            Courier.on('f3', f2);
-            Courier.on('f3', f3);
+            Courier.once('f1', f1);
+            Courier.on('f1', f2);
+            Courier.on('f1', f3);
 
-            Courier.fire('f3', 'lalala');
-            Courier.fire('f3', 'hahah');
-            Courier.fire('f2', 'wawawa');
-            Courier.fire('f2', 'wawawa');
-
+            Courier.before('f1', f4);
+            Courier.fire('f1', 'Oh~~');
+            Courier.off('f1', f1);
+            Courier.fire('f1', 'Ah~~Oh~~');
         </script>
     </body>
 </html>
