@@ -8,25 +8,147 @@
     }
 })('Courier', function() {
 
-    function addEvent(handlers, name, around, fn, isOnce) {
-        if(!handlers[name]) {
-            handlers[name] = [];
-        }
-        if(typeof around == 'string') {
-            if(!handlers[name][around]) {
-                handlers[name][around] = [];
+    var protoTrim = String.prototype.trim,
+        protoToString = Object.prototype.toString,
+        EventsTree = {},
+
+        rprefix = /^(before|after):(.*)/,
+        rtrim = /^\s*|\s*$/,
+        rseperator = /[.\/]/g;
+
+    var Util = {
+        isFunction: function(fn) {
+            return fn ? (protoToString.call(fn) == '[object Function]') : false;
+        },
+
+        shrink: function(arr) {
+            var len = arr.length;
+            while(len--) {
+                if(!this.trim(arr[len])) {
+                    arr.splice(len, 1);
+                }
             }
-            handlers[name][around].push({
-                fn: fn,
-                isOnce: isOnce
-            });
-        } else {
-            handlers[name].push({
-                fn: around,
-                isOnce: fn
-            });
+            return arr;
+        },
+
+        trim: protoTrim ? function(str) {
+            return str == null ? '' : protoTrim.call(str);
+        } : function(str) {
+            return str.replace(rtrim, '');
         }
-    }
+    };
+
+    var EventHelper = {
+        addEvent: function(name, fn, isOnce) {
+            var e,
+                match,
+                prefix;
+            if(!Util.trim(name)) return;
+            if(!Util.isFunction(fn)) return;
+
+            if((match = name.match(rprefix))) {
+                prefix = match[1];
+                name = match[2];
+            }
+            e = this.parseEventName(name);
+            e[prefix || 'handlers'].push({
+                fn: fn,
+                isOnce: !!isOnce
+            })
+        },
+        /*
+            每个事件节点有如下属性：
+                events: 子事件集合
+                names: 子事件名数组，用于触发所有子事件时循环
+                handlers: 事件函数数组
+                after: 在该事件之后触发的事件
+                before: 在该事件之前触发的事件
+         */
+        createEventNode: function(name, parent) {
+            var node,
+                names,
+                events,
+                i = 0,
+                len;
+            parent = parent || EventsTree;
+            parent.events = events = parent.events || {};
+            parent.handlers = parent.handlers || [];
+            parent.names = names = parent.names || [];
+            if((node = events[name])) return node;
+            if(name == '*') {
+                if(names.length) {
+                    node = [];
+                    for(len = names.length; i < len; i++) {
+                        node.push(events[names[i]]);
+                    }
+                } else {
+                    return null;
+                }
+            } else {
+                names.push(name);
+                node = events[name] = {
+                    after: [],
+                    before: [],
+                    handlers: [],
+                    names: [],
+                    events: {}
+                };
+            }
+
+            return node;
+        },
+
+        fireEvent: function(name, e) {
+
+        },
+
+        /*
+            事件名可以是以斜杠(/)、点号(.) 分隔，表示事件的层级关系。
+            触发深层的事件，可以导致它的所有上级事件触发。
+            支持通配符(*)
+         */
+        parseEventName: function(name) {
+            var i = 0,
+                len,
+                nlen,
+                node;
+            name = Util.trim(name);
+            if(!name) return '';
+            name = Util.shrink(name.split(rseperator));
+            len = name.length;
+            for(; i < len; i++) {
+                if(node && (nlen = node.length)) {
+                    while(nlen--) {
+                        node = this.createEventNode(name[i], node[nlen]);
+                    }
+                } else {
+                    node = this.createEventNode(name[i], node);
+                }
+
+                if(!node) {
+                    throw "事件名不合法。如果输入了 * ，请确保上层事件存在！";
+                    return;
+                }
+            }
+            return node;
+        }
+    };
+
+    EventHelper.addEvent('a/c', function(e) {
+        alert('c')
+    });
+    EventHelper.addEvent('a/d', function(e) {
+        alert('d')
+    });
+    EventHelper.addEvent('a/e', function(e) {
+        alert('e')
+    });
+
+    EventHelper.addEvent('a/*/c.d', function(e) {
+        alert('wa')
+    });
+
+    console.log(EventsTree)
 
     function fireEvent(handlers, name, around, e) {
         var hs = handlers[name],
@@ -34,13 +156,14 @@
             fn,
             arr = [];
 
+        if(!hs) return;
         if(hasAround) {
             hs = handlers[name][around];
+            if(!hs) return;
         } else {
             e = around;
         }
 
-        if(!hs) return;
 
         while((fn = hs.shift())) {
             if(!e.isStoped) {
@@ -73,16 +196,17 @@
         handlers: {},
 
         before: function(name, fn) {
-            this.on(name, fn, 'before');
+            this.on('before:' + name, fn);
             return this;
         },
 
         after: function(name, fn) {
-            this.on(name, fn, 'after');
+            this.on('after:' + name, fn);
             return this;
         },
 
-        on: function(name, fn, config) {
+        on: function(name, fn, isOnce) {
+            EventHelper.addEvent(name, fn, isOnce);
             var isBefore = false,
                 isAfter = false,
                 isOnce = false,
@@ -132,24 +256,20 @@
         },
 
         once: function(name, fn) {
-            this.on(name, fn, 'once');
+            this.on(name, fn, true);
             return this;
         },
 
         fire: function(name, data) {
             var e = {
                     data: data,
-                    /*
-                        停止后续事件触发
-                    */
+                    //停止后续事件触发
                     stop: function() {
                         this.isStoped = true;
                     }
                 };
 
-            fireEvent(this.handlers, name, 'before', e);
-            fireEvent(this.handlers, name, e);
-            fireEvent(this.handlers, name, 'after', e);
+            EventHelper.fire(name, e);
             return this;
         }
     };
