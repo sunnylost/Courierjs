@@ -12,10 +12,10 @@
                 log.log.push(text);
             };
             window.onload = function () {
-                //document.getElementById("res").innerHTML = log.log.join("<br>");
+                document.getElementById("res").innerHTML = log.log.join("<br>");
             };
         </script>
-        <!--script>
+        <script>
             var f1, f2, f3, f4;
             var eve = Courier;
 
@@ -23,6 +23,9 @@
             eve.on("hit", f1 = function () {
                 log("   I’m hit!");
             });
+            /*eve.on("before:hit", f1 = function () {
+                log("   Before I’m hit!");
+            });*/
             eve.on("hit/face", f2 = function () {
                 log("   Oh, my face!");
             });
@@ -65,7 +68,7 @@
             log("Take that!");
             eve.fire("hit.chest.leg");
             // I’m hit!
-        </script-->
+        </script>
         <pre id="res"></pre>
     </body>
 </html>
