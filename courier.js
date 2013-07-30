@@ -275,21 +275,7 @@
             })
         }
     };
-
-    function uniqueArray(arr, fn) {
-        var len = arr.length,
-            newArr = [],
-            item;
-        while(len--) {
-            item = arr.shift();
-            if(item !== fn) newArr.push(item);
-        }
-        newArr.before = arr.before;
-        newArr.after = arr.after;
-        arr = null;
-        return newArr;
-    }
-
+    
     var C = {
         handlers: {},
 
