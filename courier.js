@@ -132,8 +132,7 @@
             var node,
                 match,
                 prefix;
-            if(!Util.trim(name)) return;
-            if(!Util.isFunction(fn)) return;
+            if(!Util.trim(name) || !Util.isFunction(fn)) return;
 
             if((match = name.match(rprefix))) {
                 prefix = match[1];
@@ -141,7 +140,11 @@
             }
             node = this.parseEventName(name);
             Util.forEach(node, function(v) {
-                v[prefix || 'handlers'].unshift({
+                var events = v[prefix || 'handlers'];
+                for(var i = 0, len = events.length; i < len; i++) {
+                    if(events[i].fn === fn) return true;
+                }
+                events.unshift({
                     fn: fn,
                     isOnce: !!isOnce
                 })
