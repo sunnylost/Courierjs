@@ -17,6 +17,15 @@
         rseperator = /[.\/]/g;
 
     var Util = {
+        forEach: function(arr, callback) {
+            var i = 0,
+                len = arr.length;
+            for(; i < len; i++) {
+                if(callback.call(arr, arr[i], i) === false) return false;
+            }
+            return true;
+        },
+
         isFunction: function(fn) {
             return fn ? (protoToString.call(fn) == '[object Function]') : false;
         },
@@ -64,31 +73,54 @@
 
         fire: function(e) {
             if(this.isRoot) return;
-            var j, innerLen,
+            var that = this,
+                result,
                 handlers = this.handlers,
                 before = this.before,
-                after = this.after,
-                handler;
+                after = this.after;
 
             this.handlers = [];
             this.before = [];
             this.after = [];
 
-            for(j = 0, innerLen = before.length; j < innerLen; j++) {
-                handler = before[j];
-                !handler.isOnce && this.before.push(handler);
-                handler.fn.call(null, e);
+            result = Util.forEach(before, function(v) {
+                !v.isOnce && that.before.push(v);
+                v.fn.call(null, e);
+                if(e.isStoped) return false;
+            });
+
+            result && (result = Util.forEach(handlers, function(v) {
+                !v.isOnce && that.handlers.push(v);
+                v.fn.call(null, e);
+                if(e.isStoped) return false;
+            }));
+
+            result && (result = Util.forEach(after, function(v) {
+                !v.isOnce && that.after.push(v);
+                v.fn.call(null, e);
+                if(e.isStoped) return false;
+            }));
+
+            return result;
+        },
+
+        remove: function(fn) {
+            var pnode,
+                name = this.name;
+            if(fn) {
+                Util.forEach(this.handlers, function(v, i) {
+                    if(v.fn === fn) {
+                        this.splice(i, 1);
+                    }
+                })
+            } else {
+                pnode = this.parent;
+                delete pnode.events[name];
+                Util.forEach(pnode.nodeNames, function(v, i) {
+                    v == name && this.splice(i, 1);
+                })
             }
-            for(j = 0, innerLen = handlers.length; j < innerLen; j++) {
-                handler = handlers[j];
-                !handler.isOnce && this.handlers.push(handler);
-                handler.fn.call(null, e);
-            }
-            for(j = 0, innerLen = after.length; j < innerLen; j++) {
-                handler = after[j];
-                !handler.isOnce && this.after.push(handler);
-                handler.fn.call(null, e);
-            }
+            delete pnode
         }
     };
 
@@ -97,7 +129,7 @@
 
     var EventHelper = {
         addEvent: function(name, fn, isOnce) {
-            var e,
+            var node,
                 match,
                 prefix;
             if(!Util.trim(name)) return;
@@ -107,10 +139,12 @@
                 prefix = match[1];
                 name = match[2];
             }
-            e = this.parseEventName(name);
-            e[prefix || 'handlers'].unshift({
-                fn: fn,
-                isOnce: !!isOnce
+            node = this.parseEventName(name);
+            Util.forEach(node, function(v) {
+                v[prefix || 'handlers'].unshift({
+                    fn: fn,
+                    isOnce: !!isOnce
+                })
             })
         },
 
@@ -121,9 +155,8 @@
                 i = 0,
                 len;
             parent = parent || EventsTree.root;
-            parent.events = events = parent.events;
-            parent.handlers = parent.handlers;
-            parent.nodeNames = nodeNames = parent.nodeNames;
+            events = parent.events;
+            nodeNames = parent.nodeNames;
             if((node = events[name])) return node;
             if(name == '*') {
                 if(nodeNames.length) {
@@ -187,12 +220,13 @@
             if(!name) return;
             var names = name.split(rseperator),
                 pnode = EventsTree.root,
-                node, len, i;
+                node, len, i,
+                isKeepFire = true;
             for(i = 0, len = names.length; i < len; i++) {
                 name = names[i];
                 node = pnode.events[name];
                 if(!node) return;
-                node.fire();
+                if(!node.fire(e)) return; //stop fire decendent events
                 pnode = node;
             }
         },
@@ -206,6 +240,7 @@
             var i = 0,
                 len,
                 nlen,
+                nodes,
                 node;
             name = Util.trim(name);
             if(!name) return '';
@@ -213,8 +248,10 @@
             len = name.length;
             for(; i < len; i++) {
                 if(node && (nlen = node.length)) {
+                    nodes = node;
+                    node = [];
                     while(nlen--) {
-                        node = this.createEventNode(name[i], node[nlen]);
+                        node.push(this.createEventNode(name[i], nodes[nlen]));
                     }
                 } else {
                     node = this.createEventNode(name[i], node);
@@ -225,13 +262,14 @@
                     return;
                 }
             }
-            return node;
+            return [].concat(node);
         },
 
         removeEventNode: function(name, fn) {
-            console.log(name)
             var events = this.getEventNodes(name);
-            console.log(events);
+            Util.forEach(events, function(v) {
+                v.remove(fn);
+            })
         }
     };
 
