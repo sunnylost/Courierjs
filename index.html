@@ -27,6 +27,9 @@
             /*eve.on("before:hit", f1 = function () {
                 log("   Before I’m hit!");
             });*/
+            eve.on("hit/face hit/chest hit", function () {
+                log("   Oh, I'm being hit!");
+            });
             eve.on("hit/face", f2 = function () {
                 log("   Oh, my face!");
             });

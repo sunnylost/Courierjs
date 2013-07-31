@@ -106,13 +106,18 @@
 
         remove: function(fn) {
             var pnode,
-                name = this.name;
+                name = this.name,
+                handler,
+                len;
             if(fn) {
-                Util.forEach(this.handlers, function(v, i) {
-                    if(v.fn === fn) {
-                        this.splice(i, 1);
+                len = this.handlers.length;
+                //因为会动态修改数组长度，所以不能用 Util.forEach.
+                while(len--) {
+                    handler = this.handlers[len];
+                    if(handler.fn === fn) {
+                        this.handlers.splice(len, 1);
                     }
-                })
+                }
             } else {
                 pnode = this.parent;
                 delete pnode.events[name];
@@ -131,22 +136,28 @@
         addEvent: function(name, fn, isOnce) {
             var node,
                 match,
-                prefix;
+                prefix,
+                that = this,
+                n;
             if(!Util.trim(name) || !Util.isFunction(fn)) return;
 
             if((match = name.match(rprefix))) {
                 prefix = match[1];
                 name = match[2];
             }
-            node = this.parseEventName(name);
-            Util.forEach(node, function(v) {
-                var events = v[prefix || 'handlers'];
-                for(var i = 0, len = events.length; i < len; i++) {
-                    if(events[i].fn === fn) return true;
-                }
-                events.unshift({
-                    fn: fn,
-                    isOnce: !!isOnce
+            if(!name) return;
+            name = name.split(' ');  //支持同时绑定多个事件
+            Util.forEach(name, function(v) {
+                node = that.parseEventName(v);
+                Util.forEach(node, function(v) {
+                    var events = v[prefix || 'handlers'];
+                    for(var i = 0, len = events.length; i < len; i++) {
+                        if(events[i].fn === fn) return true;
+                    }
+                    events.unshift({
+                        fn: fn,
+                        isOnce: !!isOnce
+                    })
                 })
             })
         },
@@ -275,7 +286,7 @@
             })
         }
     };
-    
+
     var C = {
         handlers: {},
 
