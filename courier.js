@@ -288,8 +288,6 @@
     };
 
     var C = {
-        handlers: {},
-
         before: function(name, fn, isOnce) {
             EventHelper.addEvent('before:' + name, fn, isOnce);
             return this;
