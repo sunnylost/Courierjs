@@ -7,22 +7,28 @@
         window[name] = definition;
     }
 })('Courier', function() {
+    var protoTrim     = String.prototype.trim;
+    var protoToString = Object.prototype.toString;
+    var EventsTree    = {};
 
-    var protoTrim = String.prototype.trim,
-        protoToString = Object.prototype.toString,
-        EventsTree = {},
+    var attrNames = [ 'before', 'handlers', 'after' ];
+    var guid = 1;
+    var expando = '$$courier_fn_id';
 
-        rprefix = /^(before|after):(.*)/,
-        rtrim = /^\s*|\s*$/,
-        rseperator = /[.\/]/g;
+    var rprefix = /^(before|after):(.*)/;
+    var rltrim = /^\s\s*/;
+    var rrtrim = /\s\s*$/;
+    var rseperator = /[.\/]/g;
 
     var Util = {
         forEach: function(arr, callback) {
             var i = 0,
                 len = arr.length;
+
             for(; i < len; i++) {
-                if(callback.call(arr, arr[i], i) === false) return false;
+                if(callback.call(arr, arr[i], i, arr) === false) return false;
             }
+
             return true;
         },
 
@@ -30,40 +36,52 @@
             return fn ? (protoToString.call(fn) == '[object Function]') : false;
         },
 
+        /**
+         * remove empty item.
+         */
         shrink: function(arr) {
             var len = arr.length;
+
             while(len--) {
                 if(!this.trim(arr[len])) {
                     arr.splice(len, 1);
                 }
             }
+
             return arr;
         },
 
         trim: protoTrim ? function(str) {
             return str == null ? '' : protoTrim.call(str);
         } : function(str) {
-            return str.replace(rtrim, '');
+            return str == null ? '' : str.replace(rltrim, '').replace(rrtrim, '');
         }
     };
 
     /*
         每个事件节点有如下属性：
-            events: 子事件集合
+            children:   子事件集合
             handlers: 事件函数数组
-            after: 在该事件之后触发的事件
+            after:  在该事件之后触发的事件
             before: 在该事件之前触发的事件
             nodeNames: 子事件名字数组
-            name: 事件名
+            name:   事件名
             parent: 父事件节点
      */
     function EventNode(name, parent, isRoot) {
-        this.after = [];
-        this.before = [];
-        this.handlers = [];
-        this.events = {};
+        var that = this;
+
+        Util.forEach(attrNames, function(v) {
+            that[v] = [];
+            /**
+             * this index obj is used for identify duplicate function
+             */
+            that[v].index = {};
+        })
+
         this.nodeNames = [];
-        this.name = name;
+        this.children  = {};
+        this.name   = name;
         this.parent = parent;
         this.isRoot = !!isRoot;
     };
@@ -73,34 +91,40 @@
 
         fire: function(e) {
             if(this.isRoot) return;
-            var that = this,
-                result,
-                handlers = this.handlers,
-                before = this.before,
-                after = this.after;
 
-            this.handlers = [];
-            this.before = [];
-            this.after = [];
+            var that = this;
+            /**
+             * make while won't break at the first loop
+             */
+            var result = 1;
+            var tmp = {};
+            var exeNames = attrNames.slice(0);
+            var name;
 
-            result = Util.forEach(before, function(v) {
-                !v.isOnce && that.before.push(v);
-                v.fn.call(null, e);
-                if(e.isStoped) return false;
-            });
+            Util.forEach(exeNames, function(v) {
+                tmp[v]  = that[v];
+                that[v] = [];
+                that[v].index = {};
+            })
 
-            result && (result = Util.forEach(handlers, function(v) {
-                !v.isOnce && that.handlers.push(v);
-                v.fn.call(null, e);
-                if(e.isStoped) return false;
-            }));
+            while((name = exeNames.shift())) {
+                if(!result) break;
 
-            result && (result = Util.forEach(after, function(v) {
-                !v.isOnce && that.after.push(v);
-                v.fn.call(null, e);
-                if(e.isStoped) return false;
-            }));
+                result = Util.forEach(tmp[name], function(v, i) {
+                    var fn = v.fn;
+                    if(!v.isOnce) {
+                        that[name].push({
+                            fn: fn,
+                            isOnce: false
+                        });
 
+                        that[name].index[fn[expando]] = 1;
+                    }
+
+                    fn.call(null, e);
+                    if(e.isStoped) return false;
+                })
+            }
             return result;
         },
 
@@ -109,52 +133,64 @@
                 name = this.name,
                 handler,
                 len;
+
             if(fn) {
                 len = this.handlers.length;
                 //因为会动态修改数组长度，所以不能用 Util.forEach.
                 while(len--) {
                     handler = this.handlers[len];
                     if(handler.fn === fn) {
+                        delete fn.expando;
                         this.handlers.splice(len, 1);
                     }
                 }
             } else {
                 pnode = this.parent;
-                delete pnode.events[name];
+                delete pnode.children[name];
                 Util.forEach(pnode.nodeNames, function(v, i) {
                     v == name && this.splice(i, 1);
                 })
             }
-            delete pnode
         }
     };
 
-    var root = new EventNode('root', null, true);
-    EventsTree.root = root;
+    EventsTree.root = new EventNode('root', null, true);
 
     var EventHelper = {
         addEvent: function(name, fn, isOnce) {
-            var node,
-                match,
-                prefix,
-                that = this,
-                n;
-            if(!Util.trim(name) || !Util.isFunction(fn)) return;
+            var node;
+            var match;
+            var prefix;
+            var that = this;
+            var n;
+
+            if(!(name = Util.trim(name)) || !Util.isFunction(fn)) return;
 
             if((match = name.match(rprefix))) {
                 prefix = match[1];
-                name = match[2];
+                name   = match[2];
             }
+
             if(!name) return;
-            name = name.split(' ');  //支持同时绑定多个事件
+
+            name = name.split(' ');  //use space to support multiple events binding.
+
             Util.forEach(name, function(v) {
                 node = that.parseEventName(v);
                 Util.forEach(node, function(v) {
                     var events = v[prefix || 'handlers'];
-                    for(var i = 0, len = events.length; i < len; i++) {
-                        if(events[i].fn === fn) return true;
+
+                    if(!fn[expando]) {
+                        events.index[fn[expando] = guid++] = 1;
+                    } else {
+                        /*
+                            don't insert duplicate fn
+                         */
+                        if(events.index[fn[expando]]) return true;
+                        events.index[fn[expando]] = 1;
                     }
-                    events.unshift({
+
+                    events.push({
                         fn: fn,
                         isOnce: !!isOnce
                     })
@@ -163,27 +199,30 @@
         },
 
         createEventNode: function(name, parent) {
-            var node,
-                names,
-                events,
-                i = 0,
-                len;
+            var node;
+            var names;
+            var children;
+            var i = 0;
+            var len;
+
             parent = parent || EventsTree.root;
-            events = parent.events;
+            children = parent.children;
             nodeNames = parent.nodeNames;
-            if((node = events[name])) return node;
+
+            if((node = children[name])) return node;
+
             if(name == '*') {
                 if(nodeNames.length) {
                     node = [];
                     for(len = nodeNames.length; i < len; i++) {
-                        node.push(events[nodeNames[i]]);
+                        node.push(children[nodeNames[i]]);
                     }
                 } else {
                     return null;
                 }
             } else {
                 nodeNames.push(name);
-                node = events[name] = new EventNode(name, parent);
+                node = children[name] = new EventNode(name, parent);
             }
 
             return node;
@@ -197,8 +236,9 @@
                 pnode,
                 innerLen,
                 outerLen,
-                pnames, events,
+                pnames, children,
                 names = name.split(rseperator);
+
             for(var i = 0, len = names.length; i < len; i++) {
                 name = names[i];
                 if(name == '*') {
@@ -206,39 +246,43 @@
                         pnode = pnodes[j];
                         pnames = pnode.nodeNames;
                         innerLen = pnames.length;
-                        events = pnode.events;
+                        children = pnode.children;
                         while(innerLen--) {
-                            nodes.unshift(events[pnames[innerLen]]);
+                            nodes.unshift(children[pnames[innerLen]]);
                         }
                     }
                     pnodes = nodes;
                     nodes = [];
                     continue;
                 }
+
                 for(j = 0, outerLen = pnodes.length; j < outerLen; j++) {
                     pnode = pnodes[j];
-                    node = pnode.events[name];
+                    node = pnode.children[name];
                     if(!node) {
                         return null;
                     } else {
                         nodes.unshift(node);
                     }
                 }
+
                 pnodes = nodes;
                 nodes = [];
             }
+
             return pnodes;
         },
 
         fireEvent: function(name, e) {
             if(!name) return;
+
             var names = name.split(rseperator),
                 pnode = EventsTree.root,
-                node, len, i,
-                isKeepFire = true;
+                node, len, i;
+
             for(i = 0, len = names.length; i < len; i++) {
                 name = names[i];
-                node = pnode.events[name];
+                node = pnode.children[name];
                 if(!node) return;
                 if(!node.fire(e)) return; //stop fire decendent events
                 pnode = node;
@@ -251,15 +295,17 @@
             支持通配符(*)
          */
         parseEventName: function(name) {
-            var i = 0,
-                len,
-                nlen,
-                nodes,
-                node;
-            name = Util.trim(name);
-            if(!name) return '';
+            var i = 0;
+            var len;
+            var nlen;
+            var nodes;
+            var node;
+
+            if(!(name = Util.trim(name))) return '';
+
             name = Util.shrink(name.split(rseperator));
             len = name.length;
+
             for(; i < len; i++) {
                 if(node && (nlen = node.length)) {
                     nodes = node;
@@ -273,15 +319,14 @@
 
                 if(!node) {
                     throw "事件名不合法。如果输入了 * ，请确保上层事件存在！";
-                    return;
                 }
             }
+
             return [].concat(node);
         },
 
         removeEventNode: function(name, fn) {
-            var events = this.getEventNodes(name);
-            Util.forEach(events, function(v) {
+            Util.forEach(this.getEventNodes(name), function(v) {
                 v.remove(fn);
             })
         }
@@ -315,12 +360,12 @@
 
         fire: function(name, data) {
             var e = {
-                    data: data,
-                    //停止后续事件触发
-                    stop: function() {
-                        this.isStoped = true;
-                    }
-                };
+                data: data,
+                //停止后续事件触发
+                stop: function() {
+                    this.isStoped = true;
+                }
+            };
 
             EventHelper.fireEvent(name, e);
             return this;
