@@ -1,0 +1,27 @@
+{
+  "name": "courier",
+
+  "version": "0.3.2",
+
+  "description": "Event",
+
+  "main": "courier.js",
+
+  "directories": {
+    "test": "tests"
+  },
+
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sunnylost/Courier.git"
+  },
+
+  "author": "sunnylost",
+
+  "devDependencies": {
+    "gulp": "*",
+    "gulp-jshint": "*",
+    "gulp-concat": "*",
+    "gulp-uglify": "*"
+  }
+}

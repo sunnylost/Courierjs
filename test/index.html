@@ -3,7 +3,7 @@
     <head>
         <title>Courier</title>
         <meta charset="utf-8">
-        <script type="text/javascript" src="courier.js"></script>
+        <script type="text/javascript" src="../courier.js"></script>
     </head>
     <body>
         <script>
@@ -23,22 +23,31 @@
             eve.on("hit", f1 = function () {
                 log("   I’m hit!");
             });
+
+            //bind an already exist function will do nothing.
             eve.on("hit", f1);
-            /*eve.on("before:hit", f1 = function () {
+
+            eve.on("before:hit", f1 = function () {
                 log("   Before I’m hit!");
-            });*/
+            });
+
+            //multiple
             eve.on("hit/face hit/chest hit", function () {
                 log("   Oh, I'm being hit!");
             });
+
             eve.on("hit/face", f2 = function () {
                 log("   Oh, my face!");
             });
+
             eve.on("hit/chest", f3 = function () {
                 log("   Oh, my chest!");
             });
+
             eve.on("hit/*/leg", f4 = function () {
                 log("   Ouch!");
             });
+
             eve.once("hit", function () {
                 log("   You scoundrel!");
             });
@@ -46,8 +55,13 @@
             // fire events
             log("In your face!");
             eve.fire("hit/face");
+            // Before I’m hit!
             // I’m hit!
+            // Oh, I'm being hit!
+            // You scoundrel!
+            // Oh, I'm being hit!
             // Oh, my face!
+
             log("Take that!");
             // You can use “.” or “/” as delimiter
             eve.fire("hit.chest.leg");
@@ -72,6 +86,10 @@
             log("Take that!");
             eve.fire("hit.chest.leg");
             // I’m hit!
+
+            //current not support, sigh.
+            //eve.off('before:hit');
+            eve.fire('hit')
         </script>
         <pre id="res"></pre>
     </body>
