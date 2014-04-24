@@ -20,7 +20,6 @@
 
 		c.on('test', f1 = function(e) {
 			console.log('Test is fired!');
-			flag || (flag = true, e.stop());
 		}).on('test', f2 = function() {
 			console.log('Test is fired again!');
 		}).after('test', f3 = function() {
@@ -31,11 +30,13 @@
 
 		//c.fire('test', 'Yes');
 
-		//c.off('test', f2);
-
-		var flag = false;
+		c.off('before:test');
+		c.off('before:test');
+		c.off('after:test');
+		c.off('after:test');
+		//c.off('test');
 		c.fire('test', 'Yes');
-		c.fire('test', 'No');
+		//c.fire('test', 'No');
 	</script>
 </body>
 </html>

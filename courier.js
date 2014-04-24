@@ -24,8 +24,10 @@
 
     var Util = {
         forEach: function(arr, callback) {
-            var i = 0,
-                len = arr.length;
+            if(!arr || !callback) return true;
+
+            var i = 0;
+            var len = arr.length;
 
             for(; i < len; i++) {
                 if(callback.call(arr, arr[i], i, arr) === false) return false;
@@ -131,10 +133,10 @@
             return result;
         },
 
-        remove: function(fn) {
+        remove: function(fn, prefix) {
             var pnode;
             var name = this.name;
-            var handlers = this.handlers;
+            var handlers = this[prefix || 'handlers'];
             var handler;
             var len;
 
@@ -151,9 +153,9 @@
                 }
             } else {
                 pnode = this.parent;
-                delete pnode.children[name];
+                prefix || delete pnode.children[name];
                 Util.forEach(pnode.nodeNames, function(v, i) {
-                    v == name && this.splice(i, 1);
+                    v == name && (prefix ? (pnode.children[v][prefix] = []) : this.splice(i, 1));
                 })
             }
         }
@@ -171,7 +173,7 @@
 
             if(!(name = Util.trim(name)) || !Util.isFunction(fn)) return;
 
-            if((match = name.match(rprefix))) {
+            if(match = name.match(rprefix)) {
                 prefix = match[1];
                 name   = match[2];
             }
@@ -235,24 +237,26 @@
         },
 
         getEventNodes: function(name) {
-            var nodes = [],
-                node,
-                j,
-                pnodes = [EventsTree.root],
-                pnode,
-                innerLen,
-                outerLen,
-                pnames, children,
-                names = name.split(rseperator);
+            var nodes = [];
+            var node;
+            var j;
+            var pnodes = [EventsTree.root];
+            var pnode;
+            var innerLen;
+            var outerLen;
+            var pnames;
+            var children;
+            var names = name.split(rseperator);
 
             for(var i = 0, len = names.length; i < len; i++) {
                 name = names[i];
                 if(name == '*') {
                     for(j = 0, outerLen = pnodes.length; j < outerLen; j++) {
-                        pnode = pnodes[j];
-                        pnames = pnode.nodeNames;
+                        pnode    = pnodes[j];
+                        pnames   = pnode.nodeNames;
                         innerLen = pnames.length;
                         children = pnode.children;
+
                         while(innerLen--) {
                             nodes.unshift(children[pnames[innerLen]]);
                         }
@@ -264,7 +268,8 @@
 
                 for(j = 0, outerLen = pnodes.length; j < outerLen; j++) {
                     pnode = pnodes[j];
-                    node = pnode.children[name];
+                    node  = pnode.children[name];
+
                     if(!node) {
                         return null;
                     } else {
@@ -337,8 +342,18 @@
         },
 
         removeEventNode: function(name, fn) {
+            var matches;
+            var prefix;
+
+            if(!name) return;
+
+            if(matches = name.match(rprefix)) {
+                prefix = matches[1];
+                name   = matches[2];
+            }
+
             Util.forEach(this.getEventNodes(name), function(v) {
-                v.remove(fn);
+                v.remove(fn, prefix);
             })
         }
     };
