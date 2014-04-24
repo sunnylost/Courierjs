@@ -18,8 +18,9 @@
 			console.log('haha ' + e.data);
 		})
 
-		c.on('test', f1 = function() {
+		c.on('test', f1 = function(e) {
 			console.log('Test is fired!');
+			flag || (flag = true, e.stop());
 		}).on('test', f2 = function() {
 			console.log('Test is fired again!');
 		}).after('test', f3 = function() {
@@ -30,9 +31,11 @@
 
 		//c.fire('test', 'Yes');
 
-		c.off('test', f2);
+		//c.off('test', f2);
 
-		c.fire('test', 'Yes')
+		var flag = false;
+		c.fire('test', 'Yes');
+		c.fire('test', 'No');
 	</script>
 </body>
 </html>

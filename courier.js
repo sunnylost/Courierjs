@@ -20,6 +20,8 @@
     var rrtrim = /\s\s*$/;
     var rseperator = /[.\/]/g;
 
+    var INVALID_EVENT_NAME = 'The event name is not valid. If it contains a "*", please make sure the upper event is exist.';
+
     var Util = {
         forEach: function(arr, callback) {
             var i = 0,
@@ -100,6 +102,7 @@
             var tmp = {};
             var exeNames = attrNames.slice(0);
             var name;
+            var isStoped = false;
 
             Util.forEach(exeNames, function(v) {
                 tmp[v]  = that[v];
@@ -121,8 +124,8 @@
                         that[name].index[fn[expando]] = 1;
                     }
 
-                    fn.call(null, e);
-                    if(e.isStoped) return false;
+                    isStoped || fn.call(null, e);
+                    if(e.isStoped) isStoped = true;
                 })
             }
             return result;
@@ -181,15 +184,16 @@
                 node = that.parseEventName(v);
                 Util.forEach(node, function(v) {
                     var events = v[prefix || 'handlers'];
+                    var exp = fn[expando];
 
-                    if(!fn[expando]) {
+                    if(!exp) {
                         events.index[fn[expando] = guid++] = 1;
                     } else {
                         /*
                             don't insert duplicate fn
                          */
-                        if(events.index[fn[expando]]) return true;
-                        events.index[fn[expando]] = 1;
+                        if(events.index[exp]) return true;
+                        events.index[exp] = 1;
                     }
 
                     events.push({
@@ -204,11 +208,11 @@
             var node;
             var names;
             var children;
-            var i = 0;
+            var i;
             var len;
 
-            parent = parent || EventsTree.root;
-            children = parent.children;
+            parent    = parent || EventsTree.root;
+            children  = parent.children;
             nodeNames = parent.nodeNames;
 
             if((node = children[name])) return node;
@@ -216,7 +220,7 @@
             if(name == '*') {
                 if(nodeNames.length) {
                     node = [];
-                    for(len = nodeNames.length; i < len; i++) {
+                    for(i = 0, len = nodeNames.length; i < len; i++) {
                         node.push(children[nodeNames[i]]);
                     }
                 } else {
@@ -302,6 +306,7 @@
             var nlen;
             var nodes;
             var node;
+            var n;
 
             if(!(name = Util.trim(name))) return '';
 
@@ -313,14 +318,18 @@
                     nodes = node;
                     node = [];
                     while(nlen--) {
-                        node.push(this.createEventNode(name[i], nodes[nlen]));
+                        n = this.createEventNode(name[i], nodes[nlen]);
+                        if(!n) {
+                            throw INVALID_EVENT_NAME;
+                        }
+                        node.push(n);
                     }
                 } else {
                     node = this.createEventNode(name[i], node);
                 }
 
                 if(!node) {
-                    throw "事件名不合法。如果输入了 * ，请确保上层事件存在！";
+                    throw INVALID_EVENT_NAME;
                 }
             }
 
@@ -361,15 +370,13 @@
         },
 
         fire: function(name, data) {
-            var e = {
+            EventHelper.fireEvent(name, {
                 data: data,
                 //停止后续事件触发
                 stop: function() {
                     this.isStoped = true;
                 }
-            };
-
-            EventHelper.fireEvent(name, e);
+            });
             return this;
         }
     };
