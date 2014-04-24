@@ -129,19 +129,21 @@
         },
 
         remove: function(fn) {
-            var pnode,
-                name = this.name,
-                handler,
-                len;
+            var pnode;
+            var name = this.name;
+            var handlers = this.handlers;
+            var handler;
+            var len;
 
             if(fn) {
-                len = this.handlers.length;
+                len = handlers.length;
                 //因为会动态修改数组长度，所以不能用 Util.forEach.
                 while(len--) {
-                    handler = this.handlers[len];
+                    handler = handlers[len];
                     if(handler.fn === fn) {
-                        delete fn.expando;
-                        this.handlers.splice(len, 1);
+                        delete handlers.index[fn[expando]];
+                        delete fn[expando];
+                        handlers.splice(len, 1);
                     }
                 }
             } else {

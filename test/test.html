@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Test Courier</title>
+	<script src="../courier.js"></script>
+</head>
+<body>
+	<script>
+		var c = Courier;
+
+		var f1;
+		var f2;
+		var f3;
+		var f4;
+
+		c.on('before:test', function(e) {
+			console.log('haha ' + e.data);
+		})
+
+		c.on('test', f1 = function() {
+			console.log('Test is fired!');
+		}).on('test', f2 = function() {
+			console.log('Test is fired again!');
+		}).after('test', f3 = function() {
+			console.log('after fired!');
+		}).on('before:test', f4 = function() {
+			console.log('Before!');
+		})
+
+		//c.fire('test', 'Yes');
+
+		c.off('test', f2);
+
+		c.fire('test', 'Yes')
+	</script>
+</body>
+</html>
