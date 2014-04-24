@@ -62,13 +62,59 @@
         }
     };
 
+    function Map() {
+        this._maps  = {};
+        this._index = [];
+    }
+
+    Map.prototype = {
+        constructor: Map,
+
+        get: function(key) {
+            key == null && (key = '');
+            return this._maps[key];
+        },
+
+        set: function(key, value) {
+            if(!this.has(key)) {
+                this._index.push(key);
+            }
+            this._maps[key] = value;
+        },
+
+        has: function(key) {
+            return this._maps.hasOwnProperty(key);
+        },
+
+        'delete': function(key) {
+            if(this.has(key)) {
+                delete this._maps[key];
+                Util.forEach(this._index, function(k, i) {
+                    k == key && this.splice(i, 1);
+                })
+            }
+        },
+
+        size: function() {
+            return this._index.length;
+        },
+
+        each: function(fn) {
+            var that = this;
+            var maps = that._maps;
+
+            Util.forEach(that._index, function(v, i) {
+                fn.call(that, maps[v], i, that);
+            })
+        }
+    };
+
     /*
         每个事件节点有如下属性：
             children:   子事件集合
             handlers: 事件函数数组
             after:  在该事件之后触发的事件
             before: 在该事件之前触发的事件
-            nodeNames: 子事件名字数组
             name:   事件名
             parent: 父事件节点
      */
@@ -83,8 +129,7 @@
             that[v].index = {};
         })
 
-        this.nodeNames = [];
-        this.children  = {};
+        this.children = new Map();
         this.name   = name;
         this.parent = parent;
         this.isRoot = !!isRoot;
@@ -138,6 +183,7 @@
             var name = this.name;
             var handlers = this[prefix || 'handlers'];
             var handler;
+            var children;
             var len;
 
             if(fn) {
@@ -153,10 +199,11 @@
                 }
             } else {
                 pnode = this.parent;
-                prefix || delete pnode.children[name];
-                Util.forEach(pnode.nodeNames, function(v, i) {
-                    v == name && (prefix ? (pnode.children[v][prefix] = []) : this.splice(i, 1));
+                children = pnode.children;
+                children.each(function(v, i) {
+                    v.name == name && (prefix ? (v[prefix] = []) : this.delete(name));
                 })
+                prefix || children.delete(name);
             }
         }
     };
@@ -215,22 +262,20 @@
 
             parent    = parent || EventsTree.root;
             children  = parent.children;
-            nodeNames = parent.nodeNames;
 
-            if((node = children[name])) return node;
+            if(node = children.get(name)) return node;
 
             if(name == '*') {
-                if(nodeNames.length) {
+                if(children.size()) {
                     node = [];
-                    for(i = 0, len = nodeNames.length; i < len; i++) {
-                        node.push(children[nodeNames[i]]);
-                    }
+                    children.each(function(v) {
+                        node.push(v);
+                    })
                 } else {
                     return null;
                 }
             } else {
-                nodeNames.push(name);
-                node = children[name] = new EventNode(name, parent);
+                children.set(name, node = new EventNode(name, parent));
             }
 
             return node;
@@ -241,10 +286,7 @@
             var node;
             var j;
             var pnodes = [EventsTree.root];
-            var pnode;
-            var innerLen;
             var outerLen;
-            var pnames;
             var children;
             var names = name.split(rseperator);
 
@@ -252,14 +294,10 @@
                 name = names[i];
                 if(name == '*') {
                     for(j = 0, outerLen = pnodes.length; j < outerLen; j++) {
-                        pnode    = pnodes[j];
-                        pnames   = pnode.nodeNames;
-                        innerLen = pnames.length;
-                        children = pnode.children;
-
-                        while(innerLen--) {
-                            nodes.unshift(children[pnames[innerLen]]);
-                        }
+                        children = pnodes[j].children;
+                        children.each(function(v) {
+                            nodes.unshift(v);
+                        })
                     }
                     pnodes = nodes;
                     nodes = [];
@@ -267,8 +305,7 @@
                 }
 
                 for(j = 0, outerLen = pnodes.length; j < outerLen; j++) {
-                    pnode = pnodes[j];
-                    node  = pnode.children[name];
+                    node  = pnodes[j].children.get(name);
 
                     if(!node) {
                         return null;
@@ -293,7 +330,7 @@
 
             for(i = 0, len = names.length; i < len; i++) {
                 name = names[i];
-                node = pnode.children[name];
+                node = pnode.children.get(name);
                 if(!node) return;
                 if(!node.fire(e)) return; //stop fire decendent events
                 pnode = node;
