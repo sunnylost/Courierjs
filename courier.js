@@ -145,36 +145,30 @@
             /**
              * make while won't break at the first loop
              */
-            var result = 1;
-            var tmp = {};
+            var result   = 1;
+            var tmp      = {};
             var exeNames = attrNames.slice(0);
             var name;
-            var isStoped = false;
 
+            /**
+             * Use slice() to deal with 'once' method.
+             * Because 'once' will remove fn during loop.
+             */
             Util.forEach(exeNames, function(v) {
-                tmp[v]  = that[v];
-                that[v] = [];
-                that[v].index = {};
+                tmp[v] = that[v].slice();
             })
 
             while((name = exeNames.shift())) {
                 if(!result) break;
-
                 result = Util.forEach(tmp[name], function(v, i) {
-                    var fn = v.fn;
-                    if(!v.isOnce) {
-                        that[name].push({
-                            fn: fn,
-                            isOnce: false
-                        });
-
-                        that[name].index[fn[expando]] = 1;
+                    v.call(null, e);
+                    if(e.isStoped) {
+                        return false;
                     }
-
-                    isStoped || fn.call(null, e);
-                    if(e.isStoped) isStoped = true;
                 })
             }
+
+            tmp = null;
             return result;
         },
 
@@ -185,7 +179,7 @@
                 var indexes  = handlers.index;
 
                 Util.forEach(handlers, function(v, i) {
-                    if(v.fn === fn) {
+                    if(v === fn) {
                         delete indexes[fn[expando]];
                         delete fn[expando];
                         position = i;
@@ -220,7 +214,7 @@
     EventsTree.root = new EventNode('root', null, true);
 
     var EventHelper = {
-        addEvent: function(name, fn, isOnce) {
+        addEvent: function(name, fn) {
             var node;
             var match;
             var prefix;
@@ -254,10 +248,7 @@
                         events.index[exp] = 1;
                     }
 
-                    events.push({
-                        fn: fn,
-                        isOnce: !!isOnce
-                    })
+                    events.push(fn);
                 })
             })
         },
@@ -405,18 +396,18 @@
     };
 
     var C = {
-        before: function(name, fn, isOnce) {
-            EventHelper.addEvent('before:' + name, fn, isOnce);
+        before: function(name, fn) {
+            EventHelper.addEvent('before:' + name, fn);
             return this;
         },
 
-        after: function(name, fn, isOnce) {
-            EventHelper.addEvent('after:' + name, fn, isOnce);
+        after: function(name, fn) {
+            EventHelper.addEvent('after:' + name, fn);
             return this;
         },
 
-        on: function(name, fn, isOnce) {
-            EventHelper.addEvent(name, fn, isOnce);
+        on: function(name, fn) {
+            EventHelper.addEvent(name, fn);
             return this;
         },
 
@@ -426,8 +417,14 @@
         },
 
         once: function(name, fn) {
-            this.on(name, fn, true);
-            return this;
+            var that = this;
+            var newFn;
+
+            that.on(name, newFn = function(e) {
+                that.off(name, newFn);
+                fn && fn.call(null, e);
+            });
+            return that;
         },
 
         fire: function(name, data) {

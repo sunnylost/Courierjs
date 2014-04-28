@@ -32,10 +32,19 @@
 
 		//c.fire('test', 'Yes');
 
-		c.off('test', f2);
+		//c.off('test', f2);
 		//c.off('test');
-		c.fire('test', 'Yes');
+		//c.fire('test', 'Yes');
 		//c.fire('test', 'No');
+
+		c.once('hey', function() {
+			console.log('I will only fire once!')
+		}).on('hey', function() {
+			console.log('I will always fire.')
+		});
+
+		c.fire('hey')
+		 .fire('hey');
 	</script>
 </body>
 </html>
