@@ -26,14 +26,13 @@
 			console.log('after fired!');
 		}).on('before:test', f4 = function() {
 			console.log('Before!');
-		})
+		}).on('test', f5 = function() {})
+		.on('test', f6 = function() {})
+		.on('test', f6)
 
 		//c.fire('test', 'Yes');
 
-		c.off('before:test');
-		c.off('before:test');
-		c.off('after:test');
-		c.off('after:test');
+		c.off('test', f2);
 		//c.off('test');
 		c.fire('test', 'Yes');
 		//c.fire('test', 'No');

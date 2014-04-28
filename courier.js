@@ -195,6 +195,7 @@
                         delete handlers.index[fn[expando]];
                         delete fn[expando];
                         handlers.splice(len, 1);
+                        return;
                     }
                 }
             } else {
