@@ -179,30 +179,38 @@
         },
 
         remove: function(fn, prefix) {
-            var pnode;
-            var name = this.name;
-            var handlers = this[prefix || 'handlers'];
-            var handler;
-            var children;
-            var len;
-
             if(fn) {
-                len = handlers.length;
-                //因为会动态修改数组长度，所以不能用 Util.forEach.
-                while(len--) {
-                    handler = handlers[len];
-                    if(handler.fn === fn) {
-                        delete handlers.index[fn[expando]];
+                var position = -1;
+                var handlers = this[prefix || 'handlers'];
+                var indexes  = handlers.index;
+
+                Util.forEach(handlers, function(v, i) {
+                    if(v.fn === fn) {
+                        delete indexes[fn[expando]];
                         delete fn[expando];
-                        handlers.splice(len, 1);
-                        return;
+                        position = i;
+                        return false;
                     }
+                })
+
+                if(position == -1) {
+                    return;
+                } else if(handlers.length == 1) {
+                    handlers.length = 0;
+                } else {
+                    handlers.splice(position, 1);
                 }
+
+                return;
             } else {
-                pnode = this.parent;
-                children = pnode.children;
+                /**
+                 * remove all handlers fns, also means remove all *before* and *after* fns.
+                 */
+                var name     = this.name;
+                var pnode    = this.parent;
+                var children = pnode.children;
                 children.each(function(v, i) {
-                    v.name == name && (prefix ? (v[prefix] = []) : this.delete(name));
+                    v.name == name && (prefix ? (v[prefix].length = 0) : this.delete(name));
                 })
                 prefix || children.delete(name);
             }
