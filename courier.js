@@ -443,3 +443,29 @@
     };
     return C;
 }())
+
+/*
+    Node.js:
+        https://github.com/joyent/node/blob/master/lib/events.js
+
+        在 addListener 的时候，node 会考虑只有一个事件监听函数的情况：
+            https://github.com/joyent/node/blob/master/lib/events.js#L156
+        这时候不会创建数组，而只是把函数赋予它所属的类型。
+
+        我的代码则是在创建事件节点的时候就将这一切预先设置好。
+            坏处：占用内存多。分配了一些可能用不上的数组(例如 after 和 before 相对而言使用不多)
+            好处：简化代码和逻辑。在使用这些数组的时候不必做非空判断，因为数组始终会存在
+
+        node 在移除事件中也判断了数组中只包含一个事件函数的情况，清空该数组的方式是将数组 length 设置为 0
+
+
+    
+    call 与 apply：
+        http://blog.csdn.net/zhengyinhui100/article/details/7837127
+        http://jsperf.com/test-call-vs-apply/59
+
+    查资料过程中发现的文章：
+        http://blog.mozilla.org/dmandelin/2011/06/16/know-your-engines-at-oreilly-velocity-2011/
+        http://www.slideshare.net/newmovie/know-yourengines-velocity2011
+
+*/
