@@ -161,7 +161,7 @@
             while((name = exeNames.shift())) {
                 if(!result) break;
                 result = Util.forEach(tmp[name], function(v, i) {
-                    v.call(null, e);
+                    v.fn.call(v.context, e);
                     if(e.isStoped) {
                         return false;
                     }
@@ -179,7 +179,7 @@
                 var indexes  = handlers.index;
 
                 Util.forEach(handlers, function(v, i) {
-                    if(v === fn) {
+                    if(v.fn === fn) {
                         delete indexes[fn[expando]];
                         delete fn[expando];
                         position = i;
@@ -214,7 +214,7 @@
     EventsTree.root = new EventNode('root', null, true);
 
     var EventHelper = {
-        addEvent: function(name, fn) {
+        addEvent: function(name, fn, context) {
             var node;
             var match;
             var prefix;
@@ -248,7 +248,10 @@
                         events.index[exp] = 1;
                     }
 
-                    events.push(fn);
+                    events.push({
+                        fn: fn,
+                        context: context
+                    });
                 })
             })
         },
@@ -396,18 +399,18 @@
     };
 
     var C = {
-        before: function(name, fn) {
-            EventHelper.addEvent('before:' + name, fn);
+        before: function(name, fn, context) {
+            EventHelper.addEvent('before:' + name, fn, context);
             return this;
         },
 
-        after: function(name, fn) {
-            EventHelper.addEvent('after:' + name, fn);
+        after: function(name, fn, context) {
+            EventHelper.addEvent('after:' + name, fn, context);
             return this;
         },
 
-        on: function(name, fn) {
-            EventHelper.addEvent(name, fn);
+        on: function(name, fn, context) {
+            EventHelper.addEvent(name, fn, context);
             return this;
         },
 
@@ -416,14 +419,14 @@
             return this;
         },
 
-        once: function(name, fn) {
+        once: function(name, fn, context) {
             var that = this;
             var newFn;
 
             that.on(name, newFn = function(e) {
                 that.off(name, newFn);
                 fn && fn.call(null, e);
-            });
+            }, context);
             return that;
         },
 

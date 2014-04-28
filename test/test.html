@@ -41,10 +41,20 @@
 			console.log('I will only fire once!')
 		}).on('hey', function() {
 			console.log('I will always fire.')
+		}).once('before:hey', function() {
+			console.log('I will be fired before "hey" and only fired once.')
 		});
 
-		c.fire('hey')
-		 .fire('hey');
+		var context = {
+			name: 'foo',
+
+			age: 10
+		};
+
+		c.on('test-context', function() {
+			console.log('Name is ' + this.name);
+		}, context).fire('test-context')
+
 	</script>
 </body>
 </html>
