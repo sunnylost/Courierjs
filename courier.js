@@ -15,9 +15,10 @@
     var guid = 1;
     var expando = '$$courier_fn_id';
 
-    var rprefix = /^(before|after):(.*)/;
-    var rltrim = /^\s\s*/;
-    var rrtrim = /\s\s*$/;
+    var rsplit     = /\s+/; 
+    var rprefix    = /^(before|after):(.*)/;
+    var rltrim     = /^\s\s*/;
+    var rrtrim     = /\s\s*$/;
     var rseperator = /[.\/]/g;
 
     var INVALID_EVENT_NAME = 'The event name is not valid. If it contains a "*", please make sure the upper event is exist.';
@@ -230,7 +231,7 @@
 
             if(!name) return;
 
-            name = name.split(' ');  //use space to support multiple events binding.
+            name = name.split(rsplit);  //use space to support multiple events binding.
 
             Util.forEach(name, function(v) {
                 node = that.parseEventName(v);

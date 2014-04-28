@@ -176,4 +176,22 @@
         equal(o.count, 4, 'remove t7 event will remove all after handlers. ')
     });
 
+    test('bind multiple events', function() {
+        var o = {
+            count: 0
+        };
+
+        function incre() {
+            o.count++;
+        }
+
+        C.on('t8  t9', function() {
+            incre();
+        })
+         .fire('t8')
+         .fire('t9');
+
+        equal(o.count, 2, 't8 and t9 both fired.')
+    });
+
 }())
